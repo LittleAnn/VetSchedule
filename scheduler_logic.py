@@ -1,7 +1,5 @@
 import pandas as pd
 import random
-import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
 import os
 import subprocess
 import calendar
