@@ -55,6 +55,9 @@ def generate_schedule(file_path, save_path, year, month):
     }
 
     assignments = []
+    max_day = data.shape[0]
+    all_employees = list(shift_limits.keys())
+    shift_matrix = pd.DataFrame(index=range(1, max_day + 1), columns=all_employees).fillna('free')
 
     fixed_assignments = {}
     for _, row in fixed_df.iterrows():
@@ -69,6 +72,7 @@ def generate_schedule(file_path, save_path, year, month):
             last_shift[emp] = shift_type
             week = (day - 1) // 7 + 1
             weekly_shifts[emp][week] += 1
+            shift_matrix.at[day, emp] = shift_type
 
     for idx, row in data.iterrows():
         day = idx + 1
@@ -76,62 +80,38 @@ def generate_schedule(file_path, save_path, year, month):
         available_employees = [col for col in data.columns[1:] if row[col] == availability_marker]
 
         shift_type_day = 'weekend' if day in weekends else 'day'
-        if day in fixed_assignments and shift_type_day in fixed_assignments[day]:
-            emp = fixed_assignments[day][shift_type_day]
-            assignments.append({'Dzień': day, 'Typ zmiany': shift_type_day, 'Pracownik': emp})
-        else:
-            eligible_day = [
-                emp for emp in available_employees
-                if emp in assigned_shifts
-                and assigned_shifts[emp][shift_type_day] < shift_limits[emp][shift_type_day]
-                and shift_preferences[emp][shift_type_day] == 1
-                and (last_shift[emp] != 'night')
-                and (emp, day) not in vacation_days
-                and weekly_shifts[emp][week] < 4
-            ]
-            random.shuffle(eligible_day)
-            eligible_day_sorted = sorted(eligible_day, key=lambda emp: sum(assigned_shifts[emp].values()))
-            num_to_assign_day = min(2, len(eligible_day_sorted))
-            assigned_day = eligible_day_sorted[:num_to_assign_day]
-            for emp in assigned_day:
-                assigned_shifts[emp][shift_type_day] += 1
-                last_shift[emp] = shift_type_day
-                weekly_shifts[emp][week] += 1
-                assignments.append({'Dzień': day, 'Typ zmiany': shift_type_day, 'Pracownik': emp})
-
         shift_type_night = 'night'
-        if day in fixed_assignments and shift_type_night in fixed_assignments[day]:
-            emp = fixed_assignments[day][shift_type_night]
-            assignments.append({'Dzień': day, 'Typ zmiany': shift_type_night, 'Pracownik': emp})
-        else:
-            eligible_night = [
+
+        for shift_type, max_assign in [(shift_type_day, 2), (shift_type_night, 1)]:
+            if day in fixed_assignments and shift_type in fixed_assignments[day]:
+                continue
+
+            eligible_emps = [
                 emp for emp in available_employees
                 if emp in assigned_shifts
-                and assigned_shifts[emp][shift_type_night] < shift_limits[emp][shift_type_night]
-                and shift_preferences[emp][shift_type_night] == 1
+                and assigned_shifts[emp][shift_type] < shift_limits[emp][shift_type]
+                and shift_preferences[emp][shift_type] == 1
+                and (last_shift[emp] != 'night' if shift_type == 'day' else True)
                 and (emp, day) not in vacation_days
                 and weekly_shifts[emp][week] < 4
+                and (day <= 1 or shift_matrix.at[day - 1, emp] == 'free')
             ]
-            random.shuffle(eligible_night)
-            eligible_night_sorted = sorted(eligible_night, key=lambda emp: sum(assigned_shifts[emp].values()))
-            num_to_assign_night = min(1, len(eligible_night_sorted))
-            assigned_night = eligible_night_sorted[:num_to_assign_night]
-            for emp in assigned_night:
-                assigned_shifts[emp][shift_type_night] += 1
-                last_shift[emp] = shift_type_night
+
+            def fairness_score(emp):
+                return (
+                    assigned_shifts[emp][shift_type],
+                    sum(assigned_shifts[emp].values()),
+                    random.random()
+                )
+
+            eligible_sorted = sorted(eligible_emps, key=fairness_score)
+            assigned_today = eligible_sorted[:max_assign]
+
+            for emp in assigned_today:
+                assigned_shifts[emp][shift_type] += 1
+                last_shift[emp] = shift_type
                 weekly_shifts[emp][week] += 1
-                assignments.append({'Dzień': day, 'Typ zmiany': shift_type_night, 'Pracownik': emp})
-
-    all_employees = list(shift_limits.keys())
-    max_day = data.shape[0]
-    shift_matrix = pd.DataFrame(index=range(1, max_day + 1), columns=all_employees).fillna('free')
-
-    for assign in assignments:
-        day = assign['Dzień']
-        shift_type = assign['Typ zmiany']
-        emp = assign['Pracownik']
-        if emp and emp != 'Brak dostępnych pracowników':
-            shift_matrix.at[day, emp] = shift_type
+                shift_matrix.at[day, emp] = shift_type
 
     label_translation = {'day': 'Dzień', 'night': 'Noc', 'weekend': 'Dzień', 'free': 'Wolne'}
     shift_matrix = shift_matrix.applymap(lambda x: label_translation.get(x, x))
