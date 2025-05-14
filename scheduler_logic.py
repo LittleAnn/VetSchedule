@@ -53,8 +53,11 @@ def generate_schedule(file_path, save_path, year, month):
     }
     last_shift = {emp: None for emp in shift_limits}
 
-    weekly_shifts = {
-        emp: {week: 0 for week in range(1, 6)} for emp in shift_limits
+    # --- Weekly counters per shift type ---
+    weekly_shift_counts = {
+        emp: {
+            week: {'day': 0, 'night': 0, 'weekend': 0} for week in range(1, 6)
+        } for emp in shift_limits
     }
 
     assignments = []
@@ -74,7 +77,7 @@ def generate_schedule(file_path, save_path, year, month):
             assigned_shifts[emp][shift_type] += 1
             last_shift[emp] = shift_type
             week = (day - 1) // 7 + 1
-            weekly_shifts[emp][week] += 1
+            weekly_shift_counts[emp][week][shift_type] += 1
             shift_matrix.at[day, emp] = shift_type
 
     for idx, row in data.iterrows():
@@ -96,8 +99,7 @@ def generate_schedule(file_path, save_path, year, month):
                 and shift_preferences[emp][shift_type] == 1
                 and not (last_shift[emp] == 'night' and shift_type in ['day', 'weekend'])
                 and (emp, day) not in vacation_days
-                and weekly_shifts[emp][week] < 4
-                and (day <= 1 or shift_matrix.at[day - 1, emp] == 'free')
+                and weekly_shift_counts[emp][week][shift_type] < (2 if shift_type == 'night' else 4)
             ]
 
             def fairness_score(emp):
@@ -113,7 +115,7 @@ def generate_schedule(file_path, save_path, year, month):
             for emp in assigned_today:
                 assigned_shifts[emp][shift_type] += 1
                 last_shift[emp] = shift_type
-                weekly_shifts[emp][week] += 1
+                weekly_shift_counts[emp][week][shift_type] += 1
                 shift_matrix.at[day, emp] = shift_type
 
     label_translation = {'day': 'Dzień', 'night': 'Noc', 'weekend': 'Dzień', 'free': 'Wolne'}
