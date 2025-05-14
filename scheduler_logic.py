@@ -102,7 +102,8 @@ def generate_schedule(file_path, save_path, year, month):
                 )
 
             sorted_day = sorted(eligible_day, key=day_score)
-            assigned_today = sorted_day[:2]
+            num_to_assign = min(2, len(sorted_day))
+            assigned_today = sorted_day[:num_to_assign]
 
             for emp in assigned_today:
                 assigned_shifts[emp]['day'] += 1
