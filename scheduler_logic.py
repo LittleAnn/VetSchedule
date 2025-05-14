@@ -54,12 +54,6 @@ def generate_schedule(file_path, save_path, year, month):
     last_day_shift = {emp: None for emp in shift_limits}
     last_night_shift = {emp: None for emp in shift_limits}
 
-    weekly_shift_counts = {
-        emp: {
-            week: {'day': 0, 'night': 0} for week in range(1, 6)
-        } for emp in shift_limits
-    }
-
     assignments = []
     max_day = data.shape[0]
     all_employees = list(shift_limits.keys())
@@ -79,21 +73,15 @@ def generate_schedule(file_path, save_path, year, month):
                 last_night_shift[emp] = day
             else:
                 last_day_shift[emp] = day
-            week = (day - 1) // 7 + 1
-            if shift_type in ['day', 'weekend']:
-                weekly_shift_counts[emp][week]['day'] += 1
-            else:
-                weekly_shift_counts[emp][week]['night'] += 1
             shift_matrix.at[day, emp] = shift_type
 
     for idx, row in data.iterrows():
         day = idx + 1
-        week = (day - 1) // 7 + 1
-        available_employees = [col for col in data.columns[1:] if row[col] == availability_marker]
-
         is_weekend = day in weekends
         shift_label_display = 'weekend' if is_weekend else 'day'
         shift_type_night = 'night'
+
+        available_employees = [col for col in data.columns[1:] if row[col] == availability_marker]
 
         # --- Day Shift (includes weekend) ---
         if not (day in fixed_assignments and shift_label_display in fixed_assignments[day]):
@@ -146,7 +134,6 @@ def generate_schedule(file_path, save_path, year, month):
             for emp in assigned_night:
                 assigned_shifts[emp]['night'] += 1
                 last_night_shift[emp] = day
-                weekly_shift_counts[emp][week]['night'] += 1
                 shift_matrix.at[day, emp] = 'night'
 
     label_translation = {'day': 'Dzień', 'night': 'Noc', 'weekend': 'Dzień', 'free': 'Wolne'}
