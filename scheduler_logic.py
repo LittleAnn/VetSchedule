@@ -51,9 +51,9 @@ def generate_schedule(file_path, save_path, year, month):
     assigned_shifts = {
         emp: {'day': 0, 'night': 0, 'weekend': 0} for emp in shift_limits
     }
-    last_shift = {emp: None for emp in shift_limits}
+    last_day_shift = {emp: None for emp in shift_limits}
+    last_night_shift = {emp: None for emp in shift_limits}
 
-    # --- Weekly counters per shift type ---
     weekly_shift_counts = {
         emp: {
             week: {'day': 0, 'night': 0, 'weekend': 0} for week in range(1, 6)
@@ -75,7 +75,10 @@ def generate_schedule(file_path, save_path, year, month):
         fixed_assignments[day][shift_type] = emp
         if emp in assigned_shifts:
             assigned_shifts[emp][shift_type] += 1
-            last_shift[emp] = shift_type
+            if shift_type == 'night':
+                last_night_shift[emp] = day
+            else:
+                last_day_shift[emp] = day
             week = (day - 1) // 7 + 1
             weekly_shift_counts[emp][week][shift_type] += 1
             shift_matrix.at[day, emp] = shift_type
@@ -88,35 +91,60 @@ def generate_schedule(file_path, save_path, year, month):
         shift_type_day = 'weekend' if day in weekends else 'day'
         shift_type_night = 'night'
 
-        for shift_type, max_assign in [(shift_type_day, 2), (shift_type_night, 1)]:
-            if day in fixed_assignments and shift_type in fixed_assignments[day]:
-                continue
-
-            eligible_emps = [
+        # --- Day/Weekend Shift ---
+        if not (day in fixed_assignments and shift_type_day in fixed_assignments[day]):
+            eligible_day = [
                 emp for emp in available_employees
                 if emp in assigned_shifts
-                and assigned_shifts[emp][shift_type] < shift_limits[emp][shift_type]
-                and shift_preferences[emp][shift_type] == 1
-                and not (last_shift[emp] == 'night' and shift_type in ['day', 'weekend'])
+                and assigned_shifts[emp][shift_type_day] < shift_limits[emp][shift_type_day]
+                and shift_preferences[emp][shift_type_day] == 1
+                and (last_night_shift[emp] != day - 1)
                 and (emp, day) not in vacation_days
-                and weekly_shift_counts[emp][week][shift_type] < (2 if shift_type == 'night' else 4)
+                and weekly_shift_counts[emp][week][shift_type_day] < (2 if shift_type_day == 'weekend' else 4)
             ]
 
-            def fairness_score(emp):
+            def day_score(emp):
                 return (
-                    assigned_shifts[emp][shift_type],
+                    assigned_shifts[emp][shift_type_day],
                     sum(assigned_shifts[emp].values()),
                     random.random()
                 )
 
-            eligible_sorted = sorted(eligible_emps, key=fairness_score)
-            assigned_today = eligible_sorted[:max_assign]
+            sorted_day = sorted(eligible_day, key=day_score)
+            assigned_today = sorted_day[:2]
 
             for emp in assigned_today:
-                assigned_shifts[emp][shift_type] += 1
-                last_shift[emp] = shift_type
-                weekly_shift_counts[emp][week][shift_type] += 1
-                shift_matrix.at[day, emp] = shift_type
+                assigned_shifts[emp][shift_type_day] += 1
+                last_day_shift[emp] = day
+                weekly_shift_counts[emp][week][shift_type_day] += 1
+                shift_matrix.at[day, emp] = shift_type_day
+
+        # --- Night Shift ---
+        if not (day in fixed_assignments and shift_type_night in fixed_assignments[day]):
+            eligible_night = [
+                emp for emp in available_employees
+                if emp in assigned_shifts
+                and assigned_shifts[emp]['night'] < shift_limits[emp]['night']
+                and shift_preferences[emp]['night'] == 1
+                and (emp, day) not in vacation_days
+                and weekly_shift_counts[emp][week]['night'] < 2
+            ]
+
+            def night_score(emp):
+                return (
+                    assigned_shifts[emp]['night'],
+                    sum(assigned_shifts[emp].values()),
+                    random.random()
+                )
+
+            sorted_night = sorted(eligible_night, key=night_score)
+            assigned_night = sorted_night[:1]
+
+            for emp in assigned_night:
+                assigned_shifts[emp]['night'] += 1
+                last_night_shift[emp] = day
+                weekly_shift_counts[emp][week]['night'] += 1
+                shift_matrix.at[day, emp] = 'night'
 
     label_translation = {'day': 'Dzień', 'night': 'Noc', 'weekend': 'Dzień', 'free': 'Wolne'}
     shift_matrix = shift_matrix.applymap(lambda x: label_translation.get(x, x))
