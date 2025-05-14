@@ -97,7 +97,7 @@ def generate_schedule(file_path, save_path, year, month):
                 and not (last_shift[emp] == 'night' and shift_type in ['day', 'weekend'])
                 and (emp, day) not in vacation_days
                 and weekly_shifts[emp][week] < 4
-                and (day <= 2 or shift_matrix.at[day - 2, emp] == 'free')
+                and (day <= 1 or shift_matrix.at[day - 1, emp] == 'free')
             ]
 
             def fairness_score(emp):
