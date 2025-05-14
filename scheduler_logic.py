@@ -104,7 +104,6 @@ def generate_schedule(file_path, save_path, year, month):
                 and shift_preferences[emp]['day'] == 1
                 and (last_night_shift[emp] != day - 1)
                 and (emp, day) not in vacation_days
-                and weekly_shift_counts[emp][week]['day'] < 4
             ]
 
             def day_score(emp):
@@ -133,7 +132,6 @@ def generate_schedule(file_path, save_path, year, month):
                 and assigned_shifts[emp]['night'] < shift_limits[emp]['night']
                 and shift_preferences[emp]['night'] == 1
                 and (emp, day) not in vacation_days
-                and weekly_shift_counts[emp][week]['night'] < 2
             ]
 
             def night_score(emp):
