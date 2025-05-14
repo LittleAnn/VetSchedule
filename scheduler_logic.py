@@ -121,7 +121,6 @@ def generate_schedule(file_path, save_path, year, month):
                 if is_weekend:
                     assigned_shifts[emp]['weekend'] += 1
                 last_day_shift[emp] = day
-                weekly_shift_counts[emp][week]['day'] += 1
                 shift_matrix.at[day, emp] = shift_label_display
 
         # --- Night Shift ---
