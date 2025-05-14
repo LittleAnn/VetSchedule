@@ -56,7 +56,7 @@ def generate_schedule(file_path, save_path, year, month):
 
     weekly_shift_counts = {
         emp: {
-            week: {'day': 0, 'night': 0, 'weekend': 0} for week in range(1, 6)
+            week: {'day': 0, 'night': 0} for week in range(1, 6)
         } for emp in shift_limits
     }
 
@@ -80,7 +80,10 @@ def generate_schedule(file_path, save_path, year, month):
             else:
                 last_day_shift[emp] = day
             week = (day - 1) // 7 + 1
-            weekly_shift_counts[emp][week][shift_type] += 1
+            if shift_type in ['day', 'weekend']:
+                weekly_shift_counts[emp][week]['day'] += 1
+            else:
+                weekly_shift_counts[emp][week]['night'] += 1
             shift_matrix.at[day, emp] = shift_type
 
     for idx, row in data.iterrows():
@@ -88,24 +91,25 @@ def generate_schedule(file_path, save_path, year, month):
         week = (day - 1) // 7 + 1
         available_employees = [col for col in data.columns[1:] if row[col] == availability_marker]
 
-        shift_type_day = 'weekend' if day in weekends else 'day'
+        is_weekend = day in weekends
+        shift_label_display = 'weekend' if is_weekend else 'day'
         shift_type_night = 'night'
 
-        # --- Day/Weekend Shift ---
-        if not (day in fixed_assignments and shift_type_day in fixed_assignments[day]):
+        # --- Day Shift (includes weekend) ---
+        if not (day in fixed_assignments and shift_label_display in fixed_assignments[day]):
             eligible_day = [
                 emp for emp in available_employees
                 if emp in assigned_shifts
-                and assigned_shifts[emp][shift_type_day] < shift_limits[emp][shift_type_day]
-                and shift_preferences[emp][shift_type_day] == 1
+                and assigned_shifts[emp]['day'] < shift_limits[emp]['day']
+                and shift_preferences[emp]['day'] == 1
                 and (last_night_shift[emp] != day - 1)
                 and (emp, day) not in vacation_days
-                and weekly_shift_counts[emp][week][shift_type_day] < (2 if shift_type_day == 'weekend' else 4)
+                and weekly_shift_counts[emp][week]['day'] < 4
             ]
 
             def day_score(emp):
                 return (
-                    assigned_shifts[emp][shift_type_day],
+                    assigned_shifts[emp]['day'],
                     sum(assigned_shifts[emp].values()),
                     random.random()
                 )
@@ -114,10 +118,12 @@ def generate_schedule(file_path, save_path, year, month):
             assigned_today = sorted_day[:2]
 
             for emp in assigned_today:
-                assigned_shifts[emp][shift_type_day] += 1
+                assigned_shifts[emp]['day'] += 1
+                if is_weekend:
+                    assigned_shifts[emp]['weekend'] += 1
                 last_day_shift[emp] = day
-                weekly_shift_counts[emp][week][shift_type_day] += 1
-                shift_matrix.at[day, emp] = shift_type_day
+                weekly_shift_counts[emp][week]['day'] += 1
+                shift_matrix.at[day, emp] = shift_label_display
 
         # --- Night Shift ---
         if not (day in fixed_assignments and shift_type_night in fixed_assignments[day]):
@@ -177,11 +183,11 @@ def generate_schedule(file_path, save_path, year, month):
         is_weekend = (day_cell - 1) in weekends
         for cell in row:
             if cell.value == 'Dzień':
-                cell.fill = fill_day
+                cell.fill = fill_weekend if is_weekend else fill_day
             elif cell.value == 'Noc':
                 cell.fill = fill_night
             elif cell.value == 'Wolne':
-                cell.fill = fill_weekend if is_weekend else fill_free
+                cell.fill = fill_free
 
     for column_cells in ws.columns:
         max_length = 0
