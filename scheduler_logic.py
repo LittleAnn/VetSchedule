@@ -102,7 +102,8 @@ def generate_schedule(file_path, save_path, year, month):
                 )
 
             sorted_day = sorted(eligible_day, key=day_score)
-            num_to_assign = min(2, len(sorted_day))
+            max_day_workers = 3 if is_weekend else 2
+            num_to_assign = min(max_day_workers, len(sorted_day))
             assigned_today = sorted_day[:num_to_assign]
 
             for emp in assigned_today:
