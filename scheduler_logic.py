@@ -57,7 +57,12 @@ def generate_schedule(file_path, save_path, year, month):
     assignments = []
     max_day = data.shape[0]
     all_employees = list(shift_limits.keys())
-    shift_matrix = pd.DataFrame(index=range(1, max_day + 1), columns=all_employees).fillna('free')
+    shift_matrix = pd.DataFrame(index=range(1, max_day + 1), columns=all_employees)
+
+    # Initialize with 'Wolne' or 'X' based on availability
+    for idx, row in data.iterrows():
+        for emp in all_employees:
+            shift_matrix.at[idx + 1, emp] = 'Wolne' if emp in row and row[emp] == availability_marker else 'X'
 
     fixed_assignments = {}
     for _, row in fixed_df.iterrows():
@@ -140,7 +145,7 @@ def generate_schedule(file_path, save_path, year, month):
                 last_night_shift[emp] = day
                 shift_matrix.at[day, emp] = 'night'
 
-    label_translation = {'day': 'Dzień', 'night': 'Noc', 'weekend': 'Dzień', 'free': 'Wolne'}
+    label_translation = {'day': 'Dzień', 'night': 'Noc', 'weekend': 'Dzień'}
     shift_matrix = shift_matrix.applymap(lambda x: label_translation.get(x, x))
 
     summary_data = []
@@ -165,6 +170,7 @@ def generate_schedule(file_path, save_path, year, month):
     fill_night = PatternFill(start_color="2875D7", end_color="2875D7", fill_type="solid")
     fill_free = PatternFill(start_color="E8E8A5", end_color="E8E8A5", fill_type="solid")
     fill_weekend = PatternFill(start_color="C112CD", end_color="C112CD", fill_type="solid")
+    fill_unavailable = PatternFill(start_color="BBBBBB", end_color="BBBBBB", fill_type="solid")
 
     for row in ws.iter_rows(min_row=2, min_col=2):
         day_cell = row[0].row
@@ -176,6 +182,8 @@ def generate_schedule(file_path, save_path, year, month):
                 cell.fill = fill_night
             elif cell.value == 'Wolne':
                 cell.fill = fill_free
+            elif cell.value == 'X':
+                cell.fill = fill_unavailable
 
     for column_cells in ws.columns:
         max_length = 0
