@@ -79,6 +79,7 @@ def generate_schedule(file_path, save_path, year, month):
         day = idx + 1
         is_weekend = day in weekends
         shift_label_display = 'weekend' if is_weekend else 'day'
+        shift_type_internal = 'day'  # Always count toward 'day' internally
         shift_type_night = 'night'
 
         available_employees = [col for col in data.columns[1:] if row[col] == availability_marker]
@@ -88,15 +89,16 @@ def generate_schedule(file_path, save_path, year, month):
             eligible_day = [
                 emp for emp in available_employees
                 if emp in assigned_shifts
-                and assigned_shifts[emp]['day'] < shift_limits[emp]['day']
-                and shift_preferences[emp]['day'] == 1
+                and assigned_shifts[emp][shift_type_internal] < shift_limits[emp][shift_type_internal]
+                and shift_preferences[emp][shift_type_internal] == 1
+                and (not is_weekend or shift_preferences[emp]['weekend'] == 1)
                 and (last_night_shift[emp] != day - 1)
                 and (emp, day) not in vacation_days
             ]
 
             def day_score(emp):
                 return (
-                    assigned_shifts[emp]['day'],
+                    assigned_shifts[emp][shift_type_internal],
                     sum(assigned_shifts[emp].values()),
                     random.random()
                 )
@@ -107,7 +109,7 @@ def generate_schedule(file_path, save_path, year, month):
             assigned_today = sorted_day[:num_to_assign]
 
             for emp in assigned_today:
-                assigned_shifts[emp]['day'] += 1
+                assigned_shifts[emp][shift_type_internal] += 1
                 if is_weekend:
                     assigned_shifts[emp]['weekend'] += 1
                 last_day_shift[emp] = day
