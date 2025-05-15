@@ -62,7 +62,7 @@ def generate_schedule(file_path, save_path, year, month):
     # Initialize with 'Wolne' or 'X' based on availability
     for idx, row in data.iterrows():
         for emp in all_employees:
-            shift_matrix.at[idx + 1, emp] = 'Wolne' if emp in row and row[emp] == availability_marker else 'X'
+            shift_matrix.at[idx + 1, emp] = 'Wolne' if row.get(emp, 0) == availability_marker else 'X'
 
     fixed_assignments = {}
     for _, row in fixed_df.iterrows():
