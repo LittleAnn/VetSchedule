@@ -25,6 +25,5 @@ Instructions for using the sheet:
 * in the corresponding cell enter 0 if the employee does not want to work the given type of shifts, if there is such a possibility
 
 4. Fixed shifts
-* if we want to assign a predetermined shift to any employee, we should enter the day (without marking m
+* if we want to assign a predetermined shift to any employee, we should enter the day (without marking the month), script should recognize them as free. In the future versions those should be named something special, making it easier to tell the difference between "free and not asigned" and "free and not available"
 
-Translated with DeepL.com (free version)
